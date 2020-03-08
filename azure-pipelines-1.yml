@@ -1,0 +1,78 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+name: $(Build.BuildId)
+
+trigger:
+- master
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  gh_user: gurolg
+  gh_repo: jekyllpoc
+  gh_pass: $(github_pat)
+  gh_email: gurol@gurkan.org
+  gh_auth_header: $(echo -n "${gh_user}:$(github_pat)" | base64);
+
+
+steps:
+- script: git clone https://$(github_pat)@github.com/$(gh_user)/$(gh_repo).git .
+  workingDirectory: $(Build.StagingDirectory)
+  displayName: "[Git] Clone GitHub Pages Repository"
+
+- script: ls
+  workingDirectory: $(Build.StagingDirectory)
+  displayName: "ls github"
+
+- script: |
+    git config user.email $(gh_email)
+    git config user.name $(gh_user)
+  workingDirectory: $(Build.StagingDirectory)
+  displayName: '[Git] Configure User'
+
+
+- script: rm -rf ./*  !.git
+  workingDirectory: $(Build.StagingDirectory)
+  displayName: "ls github"
+
+# 2. Configure Ruby
+- task: UseRubyVersion@0 # See: https://docs.microsoft.com/en-us/azure/devops/pipelines/tasks/tool/use-ruby-version?view=azdevops
+  displayName: '[Ruby] Use Ruby >= 2.5'
+
+- script: 'gem install bundler'
+  # workingDirectory: /tmp/source
+  displayName: '[Jekyll] Install Bundler'
+
+- script: |
+    ls -la;
+    bundle install
+  # workingDirectory: /tmp/source
+  displayName: '[Jekyll] Install Jekyll and Dependencies'  
+
+- script: |
+    bundle exec jekyll build -d $(Build.StagingDirectory);
+  # workingDirectory: /tmp/source
+  displayName: '[Jekyll] Build Jekyll Static Site from /tmp/source to /tmp/build'
+
+- script: ls
+  workingDirectory: $(Build.StagingDirectory)
+  displayName: "ls github"
+ 
+- script: git status
+  workingDirectory: $(Build.StagingDirectory)
+  displayName: " github status"
+ 
+- script: |
+    git add --all;
+    git commit -m"Pipelines-Bot: Updated site via $(Build.SourceVersion)";
+  workingDirectory: $(Build.StagingDirectory)
+  displayName: '[Git] Creating commit'
+
+- script: |
+    git push origin master;
+  workingDirectory: $(Build.StagingDirectory)
+  displayName: '[Git] Push changes to remote'
